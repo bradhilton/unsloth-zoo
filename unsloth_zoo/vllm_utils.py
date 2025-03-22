@@ -832,6 +832,7 @@ def load_vllm(
     conservativeness       : float = 1.0, # For low VRAM devices, scale batches, num_seqs
     max_logprobs           : int  = 0,
     use_bitsandbytes       : bool = True,
+    max_num_seqs           : int | None = None, # Sometimes the user may have more information about the ideal max number of sequences
     num_scheduler_steps    : int  = 1, # Multi-step processing can notably reduce CPU overhead for vLLM V0
 ):
     # All Unsloth Zoo code licensed under LGPLv3
@@ -932,18 +933,21 @@ def load_vllm(
 
     from vllm import LLM, LLMEngine, AsyncLLMEngine, EngineArgs, AsyncEngineArgs
 
-    # Default vLLM max_num_seqs is 256
-    approx_max_num_seqs = 256
-    if   memory_left_for_kv_cache_gb <=  2: approx_max_num_seqs = 128 # - 32
-    elif memory_left_for_kv_cache_gb <=  4: approx_max_num_seqs = 160 # - 32
-    elif memory_left_for_kv_cache_gb <=  8: approx_max_num_seqs = 192 # - 32
-    elif memory_left_for_kv_cache_gb <= 12: approx_max_num_seqs = 224 # - 32
-    elif memory_left_for_kv_cache_gb <= 16: approx_max_num_seqs = 256 # Default
-    elif memory_left_for_kv_cache_gb <= 24: approx_max_num_seqs = 288 # + 32
-    elif memory_left_for_kv_cache_gb <= 40: approx_max_num_seqs = 320 # + 32
-    elif memory_left_for_kv_cache_gb <= 48: approx_max_num_seqs = 226 # + 16
-    elif memory_left_for_kv_cache_gb <= 80: approx_max_num_seqs = 368 # + 32
-    else: approx_max_num_seqs = 400 # + 32
+    if max_num_seqs is None:
+        # Default vLLM max_num_seqs is 256
+        approx_max_num_seqs = 256
+        if   memory_left_for_kv_cache_gb <=  2: approx_max_num_seqs = 128 # - 32
+        elif memory_left_for_kv_cache_gb <=  4: approx_max_num_seqs = 160 # - 32
+        elif memory_left_for_kv_cache_gb <=  8: approx_max_num_seqs = 192 # - 32
+        elif memory_left_for_kv_cache_gb <= 12: approx_max_num_seqs = 224 # - 32
+        elif memory_left_for_kv_cache_gb <= 16: approx_max_num_seqs = 256 # Default
+        elif memory_left_for_kv_cache_gb <= 24: approx_max_num_seqs = 288 # + 32
+        elif memory_left_for_kv_cache_gb <= 40: approx_max_num_seqs = 320 # + 32
+        elif memory_left_for_kv_cache_gb <= 48: approx_max_num_seqs = 226 # + 16
+        elif memory_left_for_kv_cache_gb <= 80: approx_max_num_seqs = 368 # + 32
+        else: approx_max_num_seqs = 400 # + 32
+    else:
+        approx_max_num_seqs = max_num_seqs
 
     # float8 KV cache can fit more sequences in 1 go so more throughput
     if float8_kv_cache: approx_max_num_seqs = int(approx_max_num_seqs * 1.05)
