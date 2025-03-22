@@ -381,16 +381,26 @@ def vllm_dynamic_quant_supported(
 pass
 
 
+def get_model_runner(llm):
+    llm_engine = getattr(llm, "llm_engine", getattr(llm, "engine", llm))
+    try:
+        model_runner = llm_engine.model_executor.driver_worker.model_runner
+    except:
+        raise RuntimeError(
+            "Unsloth: Failed to access llm_engine.model_executor.driver_worker.model_runner"
+        )
+    pass
+    if hasattr(model_runner, "_base_model_runner"):
+        model_runner = model_runner._base_model_runner
+    return model_runner
+pass
+
+
 @torch.inference_mode
 def get_vllm_state_dict(llm, return_state_dict = False, config = None):
     # All Unsloth Zoo code licensed under LGPLv3
     # Unmerges vLLM modules and returns HF equivalent state_dict
-    try:
-        llm_engine = getattr(llm, "llm_engine", getattr(llm, "engine", llm))
-        vllm_internals = llm_engine.model_executor.driver_worker.model_runner.model
-    except:
-        raise RuntimeError("Unsloth: Failed to access llm.llm_engine.model_executor.driver_worker.model_runner.model")
-    pass
+    vllm_internals = get_model_runner(llm).model
     assert(config is not None)
     vocab_size = config.vocab_size
 
@@ -822,6 +832,7 @@ def load_vllm(
     conservativeness       : float = 1.0, # For low VRAM devices, scale batches, num_seqs
     max_logprobs           : int  = 0,
     use_bitsandbytes       : bool = True,
+    num_scheduler_steps    : int  = 1, # Multi-step processing can notably reduce CPU overhead for vLLM V0
 ):
     # All Unsloth Zoo code licensed under LGPLv3
     # Create vLLM instance
@@ -1006,6 +1017,7 @@ def load_vllm(
         enforce_eager          = enforce_eager,
         swap_space             = swap_space, # Low memory devices like Colab (13GB) default 4GB
         device                 = device,
+        num_scheduler_steps    = num_scheduler_steps,
     )
     good_keys = inspect.signature(AsyncEngineArgs if use_async else EngineArgs).parameters.keys()
     old_keys = engine_args.keys()
@@ -1100,7 +1112,7 @@ pass
 def vllm_lora_already_loaded(model):
     # All Unsloth Zoo code licensed under LGPLv3
     # Check if LoRA is loaded - if not, we should load the first one
-    m = model.vllm_engine.llm_engine.model_executor.driver_worker.model_runner
+    m = get_model_runner(model.vllm_engine)
     lora_cache = m.lora_manager._adapter_manager._active_adapters.cache
 
     layers = m.model.model.layers
@@ -1118,7 +1130,7 @@ def prepare_vllm_lora_loading(model):
     # Must split into 2 lists since B is scaled in vLLM
     model_loras_A, model_loras_B = [], []
     vllm_loras_A,  vllm_loras_B  = [], []
-    vllm_model = model.vllm_engine.llm_engine.model_executor.driver_worker.model_runner.model
+    vllm_model = get_model_runner(model.vllm_engine).model
     
     # Go through all layers!
     for v_layer, m_layer in zip(vllm_model .model.layers, model.model.model.layers):
