@@ -825,6 +825,7 @@ def load_vllm(
     max_loras              : int  = 1,
     use_async              : bool = False,
     use_engine             : bool = False,
+    disable_log_requests   : bool = False, # Its nice to be able to disable request logging
     disable_log_stats      : bool = True,
     enforce_eager          : bool = False, # Good for debugging
     enable_prefix_caching  : bool = True,
@@ -834,6 +835,7 @@ def load_vllm(
     use_bitsandbytes       : bool = True,
     max_num_seqs           : int | None = None, # Sometimes the user may have more information about the ideal max number of sequences
     num_scheduler_steps    : int  = 1, # Multi-step processing can notably reduce CPU overhead for vLLM V0
+    enable_sleep_mode      : bool = False, # Sleep mode can enable offloading/discarding vLLM allocations to the CPU
 ):
     # All Unsloth Zoo code licensed under LGPLv3
     # Create vLLM instance
@@ -1013,6 +1015,7 @@ def load_vllm(
         max_lora_rank          = max_lora_rank,
         max_loras              = max_loras,
 
+        disable_log_requests   = disable_log_requests,
         disable_log_stats      = disable_log_stats,
         enable_prefix_caching  = enable_prefix_caching,
         # enable_chunked_prefill = True, # LoRA fails with chunked prefill as at Feb 2025
@@ -1022,6 +1025,7 @@ def load_vllm(
         swap_space             = swap_space, # Low memory devices like Colab (13GB) default 4GB
         device                 = device,
         num_scheduler_steps    = num_scheduler_steps,
+        enable_sleep_mode      = enable_sleep_mode,
     )
     good_keys = inspect.signature(AsyncEngineArgs if use_async else EngineArgs).parameters.keys()
     old_keys = engine_args.keys()
