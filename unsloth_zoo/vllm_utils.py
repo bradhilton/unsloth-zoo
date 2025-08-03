@@ -324,11 +324,12 @@ if importlib.util.find_spec("vllm") is not None:
             vllm.v1.worker.lora_model_runner_mixin.LRUCacheWorkerLoRAManager = PatchedLRUCacheWorkerLoRAManager
         except:
             pass
-        try:
-            import vllm.worker.model_runner
-            vllm.worker.model_runner.LRUCacheWorkerLoRAManager = PatchedLRUCacheWorkerLoRAManager
-        except:
-            pass
+        # This breaks adding LoRA adapters with add_adapter(lora_request)
+        # try:
+        #     import vllm.worker.model_runner
+        #     vllm.worker.model_runner.LRUCacheWorkerLoRAManager = PatchedLRUCacheWorkerLoRAManager
+        # except:
+        #     pass
     pass
 
     def set_inductor_config(config, runtime_shape):
